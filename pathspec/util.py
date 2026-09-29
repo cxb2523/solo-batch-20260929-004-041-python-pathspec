@@ -544,6 +544,8 @@ def match_files(
 def normalize_file(
 	file: StrPath,
 	separators: Optional[Collection[str]] = None,
+	*,
+	is_dir: Optional[bool] = None,
 ) -> str:
 	"""
 	Normalizes the file path to use the POSIX path separator (i.e., ``"/"``), and
@@ -557,6 +559,13 @@ def normalize_file(
 	not affect the results. Default is ``None`` for :data:`.NORMALIZE_PATH_SEPS`.
 	To prevent normalization, pass an empty container (e.g., an empty tuple
 	``()``).
+
+	*is_dir* (:class:`bool` or :data:`None`) optionally indicates whether *file*
+	is a directory, and controls the trailing path separator used by the
+	directory-aware matching in :class:`.GitIgnoreSpec`. If :data:`True`, the
+	normalized path is guaranteed to end with a single ``"/"``. If :data:`False`,
+	the trailing ``"/"`` (if any) is removed. If :data:`None`, any trailing
+	separator on *file* is left untouched, preserving the historical behavior.
 
 	Returns the normalized file path (:class:`str`).
 	"""
@@ -579,6 +588,15 @@ def normalize_file(
 	elif norm_file.startswith('./'):
 		# Remove current directory prefix.
 		norm_file = norm_file[2:]
+
+	if is_dir is not None:
+		# Apply directory-aware trailing slash handling. The root path (i.e., an
+		# empty normalized path) is only ever a directory.
+		if is_dir:
+			if norm_file and not norm_file.endswith('/'):
+				norm_file += '/'
+		elif norm_file.endswith('/'):
+			norm_file = norm_file[:-1]
 
 	return norm_file
 

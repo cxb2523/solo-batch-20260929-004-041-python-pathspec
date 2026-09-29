@@ -158,6 +158,8 @@ class PathSpec(Generic[TPattern_co]):
 		self,
 		file: TStrPath,
 		separators: Optional[Collection[str]] = None,
+		*,
+		is_dir: Optional[bool] = None,
 	) -> CheckResult[TStrPath]:
 		"""
 		Check the files against this path-spec.
@@ -169,9 +171,13 @@ class PathSpec(Generic[TPattern_co]):
 		:data:`None`) optionally contains the path separators to normalize. See
 		:func:`.normalize_file` for more information.
 
+		*is_dir* (:class:`bool` or :data:`None`) optionally indicates whether
+		*file* is a directory. See :func:`.normalize_file` for how the trailing
+		path separator is handled.
+
 		Returns the file check result (:class:`.CheckResult`).
 		"""
-		norm_file = normalize_file(file, separators)
+		norm_file = normalize_file(file, separators, is_dir=is_dir)
 		include, index = self._backend.match_file(norm_file)
 		return CheckResult(file, include, index)
 
@@ -179,6 +185,8 @@ class PathSpec(Generic[TPattern_co]):
 		self,
 		files: Iterable[TStrPath],
 		separators: Optional[Collection[str]] = None,
+		*,
+		is_dir: Optional[bool] = None,
 	) -> Iterator[CheckResult[TStrPath]]:
 		"""
 		Check the files against this path-spec.
@@ -191,6 +199,10 @@ class PathSpec(Generic[TPattern_co]):
 		:data:`None`) optionally contains the path separators to normalize. See
 		:func:`.normalize_file` for more information.
 
+		*is_dir* (:class:`bool` or :data:`None`) optionally indicates whether
+		each file is a directory. See :func:`.normalize_file` for how the
+		trailing path separator is handled.
+
 		Returns an :class:`~collections.abc.Iterator` yielding each file check
 		result (:class:`.CheckResult`).
 		"""
@@ -198,7 +210,7 @@ class PathSpec(Generic[TPattern_co]):
 			raise TypeError(f"files:{files!r} is not an iterable.")
 
 		for orig_file in files:
-			norm_file = normalize_file(orig_file, separators)
+			norm_file = normalize_file(orig_file, separators, is_dir=is_dir)
 			include, index = self._backend.match_file(norm_file)
 			yield CheckResult(orig_file, include, index)
 
@@ -394,6 +406,8 @@ class PathSpec(Generic[TPattern_co]):
 		self,
 		file: StrPath,
 		separators: Optional[Collection[str]] = None,
+		*,
+		is_dir: Optional[bool] = None,
 	) -> bool:
 		"""
 		Matches the file to this path-spec.
@@ -405,9 +419,13 @@ class PathSpec(Generic[TPattern_co]):
 		optionally contains the path separators to normalize. See
 		:func:`.normalize_file` for more information.
 
+		*is_dir* (:class:`bool` or :data:`None`) optionally indicates whether
+		*file* is a directory. See :func:`.normalize_file` for how the trailing
+		path separator is handled.
+
 		Returns :data:`True` if *file* matched; otherwise, :data:`False`.
 		"""
-		norm_file = normalize_file(file, separators)
+		norm_file = normalize_file(file, separators, is_dir=is_dir)
 		include, _index = self._backend.match_file(norm_file)
 		return bool(include)
 
