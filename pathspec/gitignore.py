@@ -8,7 +8,9 @@ replicate Git's handling.
 from __future__ import annotations
 
 from collections.abc import (
+	Collection,
 	Iterable,
+	Iterator,
 	Sequence)
 from typing import (
 	Callable,  # Replaced by `collections.abc.Callable` in 3.9.2.
@@ -36,8 +38,11 @@ from pathspec._typing import (
 	AnyStr,  # Removed in 3.18.
 	override)  # Added in 3.12.
 from pathspec.util import (
+	CheckResult,
+	TStrPath,
 	_is_iterable,
-	lookup_pattern)
+	lookup_pattern,
+	normalize_file)
 
 Self = TypeVar("Self", bound='GitIgnoreSpec')
 """
@@ -65,6 +70,63 @@ class GitIgnoreSpec(PathSpec[GitIgnoreSpecPattern]):
 			return False
 		else:
 			return NotImplemented
+
+	@override
+	def check_file(
+		self,
+		file: TStrPath,
+		separators: Optional[Collection[str]] = None,
+	) -> CheckResult[TStrPath]:
+		"""
+		Check the file against this gitignore-spec.
+
+		*file* (:class:`str` or :class:`os.PathLike`) is the file path to be
+		checked against :attr:`self.patterns <.PathSpec.patterns>`.
+
+		*separators* (:class:`~collections.abc.Collection` of :class:`str`; or
+		:data:`None`) optionally contains the path separators to normalize. See
+		:func:`.normalize_file` for more information.
+
+		Each file is descended into and checked individually: excluded
+		directories are never pruned early because negation patterns can
+		re-include paths beneath them. This keeps the conclusion identical to
+		:meth:`self.match_file <.PathSpec.match_file>` for the same path.
+
+		Returns the file check result (:class:`.CheckResult`).
+		"""
+		norm_file = normalize_file(file, separators)
+		include, index = self._backend.match_file(norm_file)
+		return CheckResult(file, include, index)
+
+	@override
+	def check_files(
+		self,
+		files: Iterable[TStrPath],
+		separators: Optional[Collection[str]] = None,
+	) -> Iterator[CheckResult[TStrPath]]:
+		"""
+		Check the files against this gitignore-spec.
+
+		*files* (:class:`~collections.abc.Iterable` of :class:`str` or
+		:class:`os.PathLike`) contains the file paths to be checked against
+		:attr:`self.patterns <.PathSpec.patterns>`.
+
+		*separators* (:class:`~collections.abc.Collection` of :class:`str`; or
+		:data:`None`) optionally contains the path separators to normalize. See
+		:func:`.normalize_file` for more information.
+
+		Files are checked one by one with :meth:`self.check_file
+		<.GitIgnoreSpec.check_file>`. No directory-based pruning is applied so
+		negation patterns always get a chance to re-include files.
+
+		Returns an :class:`~collections.abc.Iterator` yielding each file check
+		result (:class:`.CheckResult`).
+		"""
+		if not _is_iterable(files):
+			raise TypeError(f"files:{files!r} is not an iterable.")
+
+		for orig_file in files:
+			yield self.check_file(orig_file, separators)
 
 	# Support reversed order of arguments from PathSpec.
 	@overload  # type: ignore[override]
